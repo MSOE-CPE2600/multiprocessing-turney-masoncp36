@@ -5,11 +5,15 @@
 //
 //  Converted to use jpg instead of BMP and other minor changes
 //  
+// Lab11
+// Changes Made by: Chance Mason [masoncp@msoe.edu]
 ///
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
 #include "jpegrw.h"
+#include <string.h>
+#include <sys/wait.h>
 
 // local routines
 static int iteration_to_color( int i, int max );
@@ -19,79 +23,156 @@ static void compute_image( imgRawImage *img, double xmin, double xmax,
 static void show_help();
 
 
-int main( int argc, char *argv[] )
-{
-	char c;
+#include <stdlib.h>
+#include <stdio.h>
+#include <unistd.h>
+#include "jpegrw.h"
+#include <sys/wait.h>
+#include <time.h>
+#include <math.h>
+#include <string.h>
+ 
+ 
+// local routines
+static int iteration_to_color( int i, int max);
+static int iterations_at_point( double x, double y, int max );
+static void compute_image( imgRawImage *img, double xmin, double xmax,
+                                    double ymin, double ymax, int max);
+static void show_help();
+ 
+ 
+int main(int argc, char *argv[]) {
+    char c;
 
-	// These are the default configuration values used
-	// if no command line arguments are given.
-	const char *outfile = "mandel.jpg";
-	double xcenter = 0;
-	double ycenter = 0;
-	double xscale = 4;
-	double yscale = 0; // calc later
-	int    image_width = 1000;
-	int    image_height = 1000;
-	int    max = 1000;
+    // Default configuration values
+    const char *outfile = "mandel";
+    double xcenter = 0;
+    double ycenter = 0;
+    double xscale = 4;
+    int image_width = 1000;
+    int image_height = 1000;
+    int num_processes = 1;   // Default number of processes
+    int max = 1000;          // Default maximum iterations
+    int total_images = 50;   // Default number of images
 
-	// For each command line argument given,
-	// override the appropriate configuration value.
+    // Parse command-line arguments
+    while ((c = getopt(argc, argv, "x:y:s:W:H:m:o:n:t:h")) != -1) {
+        switch (c) {
+            case 'x':
+                xcenter = atof(optarg);
+                break;
+            case 'y':
+                ycenter = atof(optarg);
+                break;
+            case 's':
+                xscale = atof(optarg);
+                break;
+            case 'W':
+                image_width = atoi(optarg);
+                break;
+            case 'H':
+                image_height = atoi(optarg);
+                break;
+            case 'm':
+                max = atoi(optarg);
+                break;
+            case 'o':
+                outfile = optarg;
+                break;
+            case 'n':
+                num_processes = atoi(optarg);
+                break;
+            case 't':
+                total_images = atoi(optarg);
+                break;
+            case 'h':
+                show_help();
+                exit(1);
+                break;
+            default:
+                show_help();
+                exit(1);
+                break;
+        }
+    }
 
-	while((c = getopt(argc,argv,"x:y:s:W:H:m:o:h"))!=-1) {
-		switch(c) 
-		{
-			case 'x':
-				xcenter = atof(optarg);
-				break;
-			case 'y':
-				ycenter = atof(optarg);
-				break;
-			case 's':
-				xscale = atof(optarg);
-				break;
-			case 'W':
-				image_width = atoi(optarg);
-				break;
-			case 'H':
-				image_height = atoi(optarg);
-				break;
-			case 'm':
-				max = atoi(optarg);
-				break;
-			case 'o':
-				outfile = optarg;
-				break;
-			case 'h':
-				show_help();
-				exit(1);
-				break;
-		}
-	}
+    printf("mandel: x=%lf y=%lf xscale=%lf max=%d outfile=%s\n",
+           xcenter, ycenter, xscale, max, outfile);
 
-	// Calculate y scale based on x scale (settable) and image sizes in X and Y (settable)
-	yscale = xscale / image_width * image_height;
+    if (num_processes <= 0 || total_images <= 0) {
+        fprintf(stderr, "Error: num_processes and total_images must be greater than zero.\n");
+        exit(1);
+    }
 
-	// Display the configuration of the image.
-	printf("mandel: x=%lf y=%lf xscale=%lf yscale=%1f max=%d outfile=%s\n",xcenter,ycenter,xscale,yscale,max,outfile);
+    int images_per_process = total_images / num_processes;
+    int remaining_images = total_images % num_processes;
 
-	// Create a raw image of the appropriate size.
-	imgRawImage* img = initRawImage(image_width,image_height);
+    for (int p = 0; p < num_processes; p++) {
+        pid_t pid = fork();
+        if (pid == 0) {  // Child process
+            int start_image = p * images_per_process;
+            int end_image = start_image + images_per_process;
 
-	// Fill it with a black
-	setImageCOLOR(img,0);
+            // The last process handles any remaining images
+            if (p == num_processes - 1) {
+                end_image += remaining_images;
+            }
 
-	// Compute the Mandelbrot image
-	compute_image(img,xcenter-xscale/2,xcenter+xscale/2,ycenter-yscale/2,ycenter+yscale/2,max);
+            for (int i = start_image; i < end_image; i++) 
+			{
+                double scale = xscale / (1.0 + i * 0.1);  // Adjust scale slightly per image
+                if (scale <= 0.0) {  // Ensure scale never goes to zero
+                    scale = 0.0001;
+                }
+                double yscale = scale / image_width * image_height;
 
-	// Save the image in the stated file.
-	storeJpegImageFile(img,outfile);
+                // Generating unique file names for each image
+                char filename[256];
+                snprintf(filename, sizeof(filename), "%s_%d.jpg", outfile, i);
 
-	// free the mallocs
-	freeRawImage(img);
+                // Create a raw image of the appropriate size
+                imgRawImage *img = initRawImage(image_width, image_height);
+                if (!img) {
+                    fprintf(stderr, "Error: failed to initialize image.\n");
+                    exit(1);
+                }
+                setImageCOLOR(img, 0);  // Fill with black
 
-	return 0;
+                // Compute the Mandelbrot image
+                compute_image(img,
+                              xcenter - scale / 2,
+                              xcenter + scale / 2,
+                              ycenter - yscale / 2,
+                              ycenter + yscale / 2,
+                              max);
+
+                // Save the image to the unique filename
+                if (storeJpegImageFile(img, filename) != 0) {
+                    fprintf(stderr, "Error: failed to save image %s.\n", filename);
+                }
+
+				printf("Created image %s | xcenter=%lf, ycenter=%lf, xscale=%lf, yscale=%lf, max iterations=%d\n",filename, xcenter, ycenter, scale, yscale, max);
+
+
+                // Free the image resources
+                freeRawImage(img);
+            }
+            exit(0);  // Child process exits
+        } else if (pid < 0) {
+            perror("Fork failed");  // Error checking
+            exit(1);
+        }
+    }
+
+    // Parent process waits for all child processes to finish
+    for (int p = 0; p < num_processes; p++) {
+        wait(NULL);
+    }
+
+    printf("All images generated.\n");
+
+    return 0;
 }
-
 
 
 
@@ -107,7 +188,8 @@ int iterations_at_point( double x, double y, int max )
 
 	int iter = 0;
 
-	while( (x*x + y*y <= 4) && iter < max ) {
+	while( (x*x + y*y <= 4) && iter < max ) 
+	{
 
 		double xt = x*x - y*y + x0;
 		double yt = 2*x*y + y0;
@@ -135,9 +217,11 @@ void compute_image(imgRawImage* img, double xmin, double xmax, double ymin, doub
 
 	// For every pixel in the image...
 
-	for(j=0;j<height;j++) {
+	for(j=0;j<height;j++) 
+	{
 
-		for(i=0;i<width;i++) {
+		for(i=0;i<width;i++) 
+		{
 
 			// Determine the point in x,y space for that pixel.
 			double x = xmin + i*(xmax-xmin)/width;
