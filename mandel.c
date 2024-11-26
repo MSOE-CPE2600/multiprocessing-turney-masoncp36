@@ -26,7 +26,7 @@ static void show_help();
  
  
 int main(int argc, char *argv[]) {
-    char c;
+    char a;
 
     // Default configuration values
     const char *outfile = "mandel";
@@ -40,8 +40,8 @@ int main(int argc, char *argv[]) {
     int total_images = 50;   // Default number of images
 
     // Parse command-line arguments
-    while ((c = getopt(argc, argv, "x:y:s:W:H:m:o:n:t:h")) != -1) {
-        switch (c) {
+    while ((a = getopt(argc, argv, "x:y:s:W:H:m:o:c:t:h")) != -1) {
+        switch (a) {
             case 'x':
                 xcenter = atof(optarg);
                 break;
@@ -63,7 +63,7 @@ int main(int argc, char *argv[]) {
             case 'o':
                 outfile = optarg;
                 break;
-            case 'n':
+            case 'c':
                 num_processes = atoi(optarg);
                 break;
             case 't':
