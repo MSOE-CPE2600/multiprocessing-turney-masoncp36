@@ -8,5 +8,6 @@ My implementation uses most of the parts of compute image to split the images ap
 
 ## Processes and Threads Table
 All runtime is in seconds.
+
 ![image](https://github.com/user-attachments/assets/91cfdd00-3aab-4d32-b24e-710a2e06fd38)
 
