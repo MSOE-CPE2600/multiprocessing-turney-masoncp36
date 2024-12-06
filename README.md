@@ -11,3 +11,8 @@ All runtime is in seconds.
 
 ![image](https://github.com/user-attachments/assets/91cfdd00-3aab-4d32-b24e-710a2e06fd38)
 
+### Which method impacted runtime more?
+I believe that multithreading impacted the runtime more and I think it was because splitting up the images to process is more advantageous than just delegating the amount of images to process. So instead of processing images in half the time they process images in the same amount of time just with less images to do which can be limiting.
+
+### Was there a sweetspot?
+Yes. Very clearly the "sweetspot" of runtime was having 10 threads and 10 processes going causing minimal runtime compared to the others.
